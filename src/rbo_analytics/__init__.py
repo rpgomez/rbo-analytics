@@ -56,12 +56,11 @@ def compute_rbo_score(
         # Update running sets with the new item at rank k+1 (index k)
         
         # Check if item_a is now in the intersection
-        if item_a not in A_k_set:
-            if item_a in B_k_set or item_a == item_b:
-                C_k_intersection.add(item_a)
+        if item_a in B_k_set or item_a == item_b:
+            C_k_intersection.add(item_a)
         
         # Check if item_b is now in the intersection (only if it wasn't item_a)
-        if item_a != item_b and item_b not in B_k_set:
+        if item_a != item_b:
             if item_b in A_k_set: # item_b must have been added at a prior step
                 C_k_intersection.add(item_b) 
             
