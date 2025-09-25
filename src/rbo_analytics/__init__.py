@@ -1,6 +1,6 @@
 """This module provides a series of analytics for hypothesis testing that 2 recommenders are related."""
 
-from typing import List, Any, Set, Tuple
+from typing import List, Any, Set, Tuple, Union
 import numpy as np
 from numpy.typing import NDArray
 from tqdm.auto import tqdm
@@ -90,38 +90,78 @@ def compute_rbo_score(
     
     return float(score)
 
-def estimate_mu_covariance_rbo_score(probs,K, p, T=10000,verbose =False):
-    """Estimates the mean and variance of the rbo score for
-    recommender systems "B" against the base recommender system "A"
-    in which we have the probabilities (probs) of the sorted recommended list from "A",
-    how many of the items from the list to consider (K), the persistence parameter (p).
+def estimate_mu_variance_rbo_score(
+    probs: NDArray[np.float64], 
+    K: int, 
+    p: float, 
+    T: int = 10000, 
+    verbose: bool = False
+) -> Tuple[float, float]:
+    """
+    Estimates the mean (mu) and variance (var) of the RBO score using Monte Carlo simulation.
 
-    This code will perform a sequence (T) of Monte Carlo simulations of simulating a recommender
-    system ("B") that is causally related to "A" generating ranked recommender lists of length K,
-    computing the corresponding RBO score for each simulation, and then computing the 
-    sample mean and variance of the RBO scores from the simulations."""
+    This simulates a comparison between a fixed base ranking (A) and a simulated 
+    ranking (B) where the items are drawn based on provided probabilities.
+    
+    Args:
+        probs: 1D NumPy array of probabilities (summing to 1) for selecting 
+               an item from the base set N. N is the size of the population.
+        K: The prefix length (depth) of the ranked lists to consider (A[:K], B[:K]).
+        p: The persistence parameter (float between 0 and 1) for the RBO calculation.
+        T: The number of Monte Carlo simulations (trials) to run. Defaults to 10,000.
+        verbose: If True, uses tqdm to display a progress bar for the simulations.
 
-    scores = np.zeros(T)
+    Returns:
+        A tuple containing:
+        - mu (float): The estimated mean RBO score, E[RBO(A, B)].
+        - var (float): The estimated variance of the RBO scores, Var[RBO(A, B)].
+        
+    Raises:
+        ValueError: If the total number of items (N) is less than the cutoff rank (K), 
+                    as a ranking of length K cannot be generated from N items.
+    """
 
-    N = probs.shape[0]
-    list_a = np.arange(K) # the ranked list of recommendations from recommender "A"
+    # The array is initialized to store the RBO scores from T trials.
+    scores: NDArray[np.float64] = np.zeros(T, dtype=np.float64)
+
+    # N is the size of the total item population (domain)
+    N: int = probs.shape[0] 
+    
+    # Base recommender list 'A' is fixed as the first K indices (items 0 to K-1)
+    # This assumes that 'A' is a perfect ranking of the K most important items
+    # and that 'probs' is aligned with this ideal ranking.
+    list_a: List[int] = list(np.arange(K)) 
 
     if N < K:
-        raise Exception(f"N is smaller than K! N = {N}, K = {K}")
+        raise ValueError(f"Population size (N={N}) is smaller than cutoff rank (K={K}). Cannot sample ranking B.")
 
+    # Determine the iterable for the loop (with or without progress bar)
+    iterations: Union[range, tqdm]
     if verbose:
-        iterations = tqdm(range(T),desc='Conducting experiments')
+        iterations = tqdm(range(T), desc='Conducting RBO simulations')
     else:
         iterations = range(T)
 
     for t in iterations:
-        # the ranked list of recommendations from recommender "B"
-        list_b = np.random.choice(N,size=K,replace=False,p=probs)
+        # Generate the ranked list 'B' by sampling K items without replacement,
+        # weighted by the provided probabilities.
+        list_b_array: NDArray[np.int_] = np.random.choice(
+            a=N, 
+            size=K, 
+            replace=False, 
+            p=probs
+        )
         
-        scores[t] = compute_rbo_score(list_a, list_b,p)
+        # Convert the sampled array to a Python list for the compute_rbo_score function
+        list_b: List[Any] = list(list_b_array)
+        
+        # Compute the RBO score for the pair (list_a, list_b)
+        scores[t] = compute_rbo_score(list_a, list_b, p)
 
-    mu = scores.mean()
-    var = scores.var()
+    # Compute the sample mean and variance of the simulation scores
+    mu: float = scores.mean()
+    var: float = scores.var()
 
     return mu, var
+
     
