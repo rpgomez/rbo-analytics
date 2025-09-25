@@ -88,8 +88,3 @@ def compute_rbo_score(
     score: np.float64 = ((1.0 - p) / (1.0 - p**K)) * sum_term
     
     return float(score)
-
-# The inner calculation logic for RBO is complex. Your original logic appears to be 
-# an efficient way to recursively track the size of the intersection set $|A[:k] \cap B[:k]|$ 
-# without recomputing the full intersection at every step.
-
