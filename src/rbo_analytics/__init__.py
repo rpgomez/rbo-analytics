@@ -3,6 +3,7 @@
 from typing import List, Any, Set, Tuple
 import numpy as np
 from numpy.typing import NDArray
+from tqdm.auto import tqdm
 
 # Note: The 'typing' module is for type hints. For functions using NumPy arrays,
 # 'numpy.typing' is also often helpful, though standard Python types (like List, float)
@@ -88,3 +89,39 @@ def compute_rbo_score(
     score: np.float64 = ((1.0 - p) / (1.0 - p**K)) * sum_term
     
     return float(score)
+
+def estimate_mu_covariance_rbo_score(probs,K, p, T=10000,verbose =False):
+    """Estimates the mean and variance of the rbo score for
+    recommender systems "B" against the base recommender system "A"
+    in which we have the probabilities (probs) of the sorted recommended list from "A",
+    how many of the items from the list to consider (K), the persistence parameter (p).
+
+    This code will perform a sequence (T) of Monte Carlo simulations of simulating a recommender
+    system ("B") that is causally related to "A" generating ranked recommender lists of length K,
+    computing the corresponding RBO score for each simulation, and then computing the 
+    sample mean and variance of the RBO scores from the simulations."""
+
+    scores = np.zeros(T)
+
+    N = probs.shape[0]
+    list_a = np.arange(K) # the ranked list of recommendations from recommender "A"
+
+    if N < K:
+        raise Exception(f"N is smaller than K! N = {N}, K = {K}")
+
+    if verbose:
+        iterations = tqdm(range(T),desc='Conducting experiments')
+    else:
+        iterations = range(T)
+
+    for t in iterations:
+        # the ranked list of recommendations from recommender "B"
+        list_b = np.random.choice(N,size=K,replace=False,p=probs)
+        
+        scores[t] = compute_rbo_score(list_a, list_b,p)
+
+    mu = scores.mean()
+    var = scores.var()
+
+    return mu, var
+    
