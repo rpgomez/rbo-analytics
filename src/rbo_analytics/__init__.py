@@ -387,4 +387,65 @@ def determine_K_p(
 
     return K, p
 
-    return K,p
+
+def compute_recommender_test_statistic(lists_a, lists_b, probs_a, verbose=False):
+    """
+    Implements the test statistic for related performance for recommenders A & B for me.
+
+    lists_a is a list of lists of recommendations by recommender A.
+    lists_b is a corresponding list of lists by recommender B.
+    probs_a is a list of probabilities, one list of probabilities per each list of recommendations by recommender A.
+
+    The test statistic is given as:
+
+    $$X = \sum_n RBOScore(list_a[n], lists_b[n], probs_a[n])$$
+
+    Under the  null hypothesis, if A and B are statistically related in rank predictions then 
+
+    $$ X ~ Norm(\mu,\sigma^2) $$
+
+    where 
+
+    $$\mu = \sum_n \mu_n, \qquad \sigma^2 = \sum_n \sigma^2_n $$
+
+    and $\mu_n, \sigma^2_n$ are estimated using function **estimate_mu_variance_rbo_score**.
+
+    This function returns the normalized sigmage score $Z_0 = (X - \mu)/\sigma$
+
+    Note that this test statistic is NOT symmetric in the order of recommenders. In this regard
+    it is similar in behavior to the Kullback-Leibler divergence function.
+
+
+    if recommender A and B are related if 
+
+    $$ Pr(Z \ge Z_0) \ge 0.01, \qquad  Z ~ Norm(0,1), \quad \text{equivalently } \quad Z_0 \gtrapprox -2.33 $$
+    """
+
+    # For each each list of probabilities determine appropriate K and p to use.
+    if verbose:
+        iterable = tqdm(probs_a,desc='estimating Ks and ps')
+    else:
+        iterable = probs_a
+    
+    Ks_ps = [determine_K_p(probs) for probs in iterable]
+
+    # Determine a mask for which lists are valid to  use:
+    mask = [K_p[1] is not None  for K_p in Ks_ps]
+
+    # now filter data based on mask.
+    new_lists_a = [list_a for t,list_a in enumerate(lists_a) if mask[t]]
+    new_lists_b = [list_b for t,list_b in enumerate(lists_b) if mask[t]]
+    new_probs_a = [probs_a for t,probs_a in enumerate(probs_a) if mask[t]]
+    Ks_ps = [K_p for K_p in Ks_ps if K_p[1] is not None]
+    
+    # Now determine \mu_n, \sigma^2_n for each list_a in new_lists_a.
+    sorted_probs = [np.sort(probs)[::-1] for probs in new_probs_a]
+
+    iterable = sorted_probs
+    if verbose:
+        iterable = tqdm(iterable,desc='Estimating mu_n, variance_n')
+        
+    mu_sigmas = [estimate_mu_variance_rbo_score(probs[t],Ks_ps[t][0],Ks_ps[t][1]) \
+                 for t,probs in enumerate(sorted_probs) ]
+
+    # Now score list_a and against list_b for each pairing.
