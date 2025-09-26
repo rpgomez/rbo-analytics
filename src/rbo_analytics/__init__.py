@@ -165,50 +165,164 @@ def estimate_mu_variance_rbo_score(
 
     return mu, var
 
-def f_test(group1, group2,ddof=0):
-    """ 
-    Computes the F test statistic and the corresponding p value for comparing 2 populations.
 
-    group1 and group2 are numpy arrays with shape N, and M respectively.
+# Type alias for clarity
+FTestResult = Tuple[float, float]
+
+def f_test_anova_2_groups(
+    group1: NDArray[np.float64], 
+    group2: NDArray[np.float64], 
+) -> FTestResult:
     """
-    K = 2
-    mu1,mu2 = group1.mean(), group2.mean()
-    n1, n2 = group1.shape[0],group2.shape[0]
-    N = n1 + n2
-    mu = (n1*mu1 + n2*mu2)/(n1+n2)
-    expl_var = n1*(mu1-mu)**2 + n2*(mu2-mu)**2
-    expl_var /= (K-1)
-    unexpl_var = (n1*group1.var() + n2*group2.var())/(N-K)
-    f_ratio = expl_var/unexpl_var
-    d1 = K - 1
-    d2 = N - K
-    #f = np.var(group1, ddof=ddof)/np.var(group2, ddof=ddof)
-    p_value = 1-scipy.stats.f.cdf(f_ratio, d1, d2)
+    Computes the one-way ANOVA F-test statistic and the corresponding p-value 
+    for comparing the means of two independent populations (groups).
+    
+    This function calculates the F-ratio as the ratio of explained variance 
+    (Between-Group Mean Square) to unexplained variance (Within-Group Mean Square).
+
+    Args:
+        group1: A 1D NumPy array representing the first population.
+        group2: A 1D NumPy array representing the second population.
+
+    Returns:
+        A tuple (f_ratio, p_value) containing:
+        - f_ratio (float): The computed F-test statistic.
+        - p_value (float): The upper-tail probability (p-value) corresponding 
+                           to the F-ratio.
+
+    Raises:
+        ValueError: If either group has fewer than 1 element.
+    """
+    
+    n1: int = group1.shape[0]
+    n2: int = group2.shape[0]
+
+    if n1 < 1 or n2 < 1:
+        # F-test is invalid if a group is empty.
+        # This case is handled in find_elbow_f_test's loop range, but included here for robustness.
+        return 0.0, 1.0 
+
+    K: int = 2 # Number of groups
+    N: int = n1 + n2
+    
+    # 1. Compute means and overall grand mean
+    mu1: float = float(group1.mean())
+    mu2: float = float(group2.mean())
+    mu_grand: float = (n1 * mu1 + n2 * mu2) / N # Overall grand mean
+
+    # 2. Explained Variance (Between-Group Mean Square - MSB)
+    # Sum of Squares Between (SSB)
+    SSB: float = n1 * (mu1 - mu_grand)**2 + n2 * (mu2 - mu_grand)**2
+    # Degrees of Freedom 1 (df1)
+    df1: int = K - 1 
+    # Mean Square Between
+    expl_var: float = SSB / df1 
+
+    # 3. Unexplained Variance (Within-Group Mean Square - MSW)
+    # Sum of Squares Within (SSW)
+    # Note: np.var() uses N as the denominator by default (ddof=0).
+    # n * group.var(ddof=0) is equivalent to Sum of Squares from the mean.
+    SSW: float = n1 * float(group1.var()) + n2 * float(group2.var()) 
+    # Degrees of Freedom 2 (df2)
+    df2: int = N - K
+    # Mean Square Within
+    unexpl_var: float = SSW / df2
+    
+    # Check for perfect fit (SSW=0, MSW=0)
+    if unexpl_var == 0.0:
+        f_ratio = np.inf
+        p_value = 0.0
+    else:
+        # 4. F-ratio (MSB / MSW) and p-value
+        f_ratio: float = expl_var / unexpl_var
+        # sf (Survival Function) is 1 - CDF, giving the upper tail probability (p-value)
+        p_value: float = float(scipy.stats.f.sf(f_ratio, df1, df2)) 
+        
     return f_ratio, p_value
 
-def find_elbow_f_test(sorted_values, cutoff = 0.01):
-    """Takes a monotonic array and determines the most likely location of an elbow using an F-test.
-    cutoff is the nominal p-value cutoff to use, which will be rescaled according to Bonferroni correction
-    based on the size of the array.
-
-    Returns the location t of the split into 2 populations: sorted_values[:t], sorted_values[t:]
-    or None if no statistical split was observed.
+def find_elbow_f_test(
+    sorted_values: Union[List[float], NDArray[np.float64]], 
+    p_cutoff: float = 0.01
+) -> Optional[int]:
     """
-
-    f_ratio_p_values = np.array([f_test(sorted_values[:t],sorted_values[t:]) for t in range(1,len(sorted_values))])
-    try:
-        f_ratio, p_values = f_ratio_p_values[:,0], f_ratio_p_values[:,1]
-    except IndexError:
-        print("Something went wrong. f_ratio_p_values.shape = ",f_ratio_p_values.shape)
-        print("sorted_values size: ",len(sorted_values))
-        raise Exception("Something Went wrong.")
+    Detects the most likely location of an elbow in a sorted sequence by finding 
+    the split point that maximizes the ANOVA F-test statistic (maximum mean difference).
     
-    scaled_cutoff = cutoff/p_values.shape[0]
-    if p_values.min() >= scaled_cutoff:
+    A Bonferroni correction is applied to control the family-wise error rate 
+    due to multiple comparisons.
+
+    Args:
+        sorted_values: A monotonic array or list of values.
+        p_cutoff: The nominal p-value cutoff (alpha). Defaults to 0.01.
+
+    Returns:
+        The 0-based index `t` (where $2 \le t \le N-2$) of the split into 
+        two populations: `sorted_values[:t]` and `sorted_values[t:]`. 
+        Returns None if no split is statistically significant after correction.
+    """
+    
+    y: NDArray[np.float64]
+    if isinstance(sorted_values, list):
+        y = np.array(sorted_values, dtype=np.float64)
+    else:
+        y = sorted_values
+
+    N: int = y.shape[0]
+    
+    # We need at least 4 data points for a valid split (2 in group 1, 2 in group 2)
+    # Splits run from t=2 ([:2], [2:]) to t=N-2 ([:N-2], [N-2:])
+    min_split_t: int = 2
+    max_split_t: int = N - 1
+    
+    if N < 4:
         return None
 
+    # 1. Compute F-test for all candidate splits
+    # The loop range(1, len(sorted_values)) in the original code is too broad, 
+    # as splits at t=1 (1 element vs N-1) or t=N-1 (N-1 elements vs 1) don't have enough 
+    # degrees of freedom for the ANOVA F-test (df2 = N - 2). A minimum of 2 elements 
+    # per group (t from 2 to N-2) is required for a stable test.
+    
+    # Limiting the range to ensure at least 2 elements in each group.
+    f_ratio_p_values_list: List[FTestResult] = []
+    
+    for t in range(min_split_t, max_split_t): 
+        f_ratio_p_values_list.append(
+            f_test_anova_2_groups(y[:t], y[t:])
+        )
+    
+    if not f_ratio_p_values_list:
+        return None
 
-    #N = np.argmin(p_values)+1
-    N = np.argmax(f_ratio) + 1
-    return N
+    f_ratio_p_values: NDArray[np.float64] = np.array(f_ratio_p_values_list)
+    
+    # 2. Separate F-ratios and p-values
+    # The `try/except` block is replaced by direct access after list aggregation.
+    f_ratios: NDArray[np.float64] = f_ratio_p_values[:, 0]
+    p_values: NDArray[np.float64] = f_ratio_p_values[:, 1]
+    
+    # 3. Apply Bonferroni Correction
+    K_total: int = p_values.shape[0] # Number of tests performed
+    scaled_p_cutoff: float = p_cutoff / K_total
+
+    # 4. Find the most significant split
+    # The original logic used np.argmax(f_ratio), which is correct for finding the 
+    # most "extreme" statistic, as a higher F-ratio corresponds to a smaller p-value.
+    
+    # Get the index (0-based) within the *f_ratios* array.
+    max_f_index: int = np.argmax(f_ratios) 
+    
+    # Get the minimum p-value corresponding to the max F-ratio
+    min_p_value: float = p_values[max_f_index]
+
+    # 5. Check Significance
+    if min_p_value >= scaled_p_cutoff:
+        return None
+
+    # The index t of the split is the index within the loop range.
+    # The loop started at min_split_t (t=2), so we adjust the array index.
+    split_t_location: int = min_split_t + max_f_index
+    
+    return split_t_location
+
 
