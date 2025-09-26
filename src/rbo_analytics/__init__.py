@@ -1,9 +1,10 @@
 """This module provides a series of analytics for hypothesis testing that 2 recommenders are related."""
 
-from typing import List, Any, Set, Tuple, Union
+from typing import List, Any, Set, Tuple, Union, Optional
 import numpy as np
 from numpy.typing import NDArray
 from tqdm.auto import tqdm
+import scipy.stats
 
 # Note: The 'typing' module is for type hints. For functions using NumPy arrays,
 # 'numpy.typing' is also often helpful, though standard Python types (like List, float)
@@ -164,4 +165,50 @@ def estimate_mu_variance_rbo_score(
 
     return mu, var
 
+def f_test(group1, group2,ddof=0):
+    """ 
+    Computes the F test statistic and the corresponding p value for comparing 2 populations.
+
+    group1 and group2 are numpy arrays with shape N, and M respectively.
+    """
+    K = 2
+    mu1,mu2 = group1.mean(), group2.mean()
+    n1, n2 = group1.shape[0],group2.shape[0]
+    N = n1 + n2
+    mu = (n1*mu1 + n2*mu2)/(n1+n2)
+    expl_var = n1*(mu1-mu)**2 + n2*(mu2-mu)**2
+    expl_var /= (K-1)
+    unexpl_var = (n1*group1.var() + n2*group2.var())/(N-K)
+    f_ratio = expl_var/unexpl_var
+    d1 = K - 1
+    d2 = N - K
+    #f = np.var(group1, ddof=ddof)/np.var(group2, ddof=ddof)
+    p_value = 1-scipy.stats.f.cdf(f_ratio, d1, d2)
+    return f_ratio, p_value
+
+def find_elbow_f_test(sorted_values, cutoff = 0.01):
+    """Takes a monotonic array and determines the most likely location of an elbow using an F-test.
+    cutoff is the nominal p-value cutoff to use, which will be rescaled according to Bonferroni correction
+    based on the size of the array.
+
+    Returns the location t of the split into 2 populations: sorted_values[:t], sorted_values[t:]
+    or None if no statistical split was observed.
+    """
+
+    f_ratio_p_values = np.array([f_test(sorted_values[:t],sorted_values[t:]) for t in range(1,len(sorted_values))])
+    try:
+        f_ratio, p_values = f_ratio_p_values[:,0], f_ratio_p_values[:,1]
+    except IndexError:
+        print("Something went wrong. f_ratio_p_values.shape = ",f_ratio_p_values.shape)
+        print("sorted_values size: ",len(sorted_values))
+        raise Exception("Something Went wrong.")
     
+    scaled_cutoff = cutoff/p_values.shape[0]
+    if p_values.min() >= scaled_cutoff:
+        return None
+
+
+    #N = np.argmin(p_values)+1
+    N = np.argmax(f_ratio) + 1
+    return N
+
