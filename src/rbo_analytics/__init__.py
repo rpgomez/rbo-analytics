@@ -392,10 +392,12 @@ def compute_recommender_test_statistic(lists_a, lists_b, probs_a, verbose=False)
     """
     Implements the test statistic for related performance for recommenders A & B for me.
 
-    lists_a is a list of lists of recommendations by recommender A.
-    lists_b is a corresponding list of lists by recommender B.
-    probs_a is a list of probabilities, one list of probabilities per each list of recommendations by recommender A.
+    lists_a is a list of ranked lists of recommendations by recommender A.
+    lists_b is a corresponding list of ranked lists by recommender B.
+    probs_a is a list of lists of probabilities, one list of probabilities per each list of recommendations by recommender A
+    .
 
+    Each list in lists_a should have been ranked sorted by the corresponding probability list
     The test statistic is given as:
 
     $$X = \sum_n RBOScore(list_a[n], lists_b[n], probs_a[n])$$
@@ -446,6 +448,23 @@ def compute_recommender_test_statistic(lists_a, lists_b, probs_a, verbose=False)
         iterable = tqdm(iterable,desc='Estimating mu_n, variance_n')
         
     mu_sigmas = [estimate_mu_variance_rbo_score(probs[t],Ks_ps[t][0],Ks_ps[t][1]) \
-                 for t,probs in enumerate(sorted_probs) ]
+                 for t,probs in enumerate(new_probs) ]
 
+    mu_sigmas = np.array(mu_sigmas)
+    mu, var = mu_sigmas.sum(axis=0)
+    sigma = var**0.5
+    
     # Now score list_a and against list_b for each pairing.
+    scores = []
+
+    for t, list_a in enumerate(new_lists_a):
+        K,p = Ks_ps[t]
+        list_b = new_lists_b[t]
+        probs = new_probs_a[t]
+        scores.append(compute_rbo_score(list_a[:K],list_b[:K],p))
+
+
+    statistic = sum(scores)
+    Z = (statistic - mu)/sigma
+    return Z
+
