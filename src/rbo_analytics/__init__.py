@@ -91,6 +91,54 @@ def compute_rbo_score(
     
     return float(score)
 
+def perform_montecarlo(probs,K=None, T=10000,verbose=False):
+    """Performs T simulations of resampling from (N>=K) ranked items based on the probability distribution
+    probs. For each resample an rbo score is generated against the ranked list 1...K
+
+    probs is list of sorted in descending order probabilities
+
+    N is the length of probs, the size of the ranked list.
+    
+    K is the number of entries that matter in the ranked list. K cannot be greater than the length of probs. If
+    K is not provided, then we set K = N
+
+    verbose is a boolean that determines whether or not a tqdm progressbar is displayed.
+    returns the sorted list of montecarlo rbo scores.
+    """
+
+    N = len(probs)
+    if K is None:
+        K = N
+
+    p = 0.01**(1/K)
+    list_a_array: NDArray[np.int_] = np.arange(K)
+    
+    list_b_array: NDArray[np.int_] = np.random.choice(
+            a=N, 
+            size=K, 
+            replace=False, 
+            p=probs
+        )
+
+    iterable = range(T)
+    if verbose:
+        iterable = tqdm(iterable,desc='Performing Monte Carlo Simulations')
+
+    scores = []
+    for t in iterable:
+        list_b_array: NDArray[np.int_] = np.random.choice(
+            a=N, 
+            size=K, 
+            replace=False, 
+            p=probs
+        )
+        scores.append(compute_rbo_score(list_a_array,list_b_array,p))
+
+    scores = np.array(scores)
+    scores.sort()
+
+    return scores
+        
 def estimate_mu_variance_rbo_score(
     probs: NDArray[np.float64], 
     K: int, 
