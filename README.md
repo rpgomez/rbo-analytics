@@ -68,8 +68,8 @@ print("Sigmage that the 2 document embedders are functionally related: {Z}")
 print(f"The 2 document embedders are functionally related: {Z>=-2.33}")
 ```
 
-## Comparing Nonlinear Projection Algorithm
-One of the first things I wanted to do after developing a hypothesis testing analytic with RBO waas to
+## Comparing Nonlinear Projection Algorithms
+One of the first things I wanted to do after developing a hypothesis testing analytic with RBO was to
 compare the performance of my favorite local structure preserving nonlinear projection algorithm [UMAP](https://en.wikipedia.org/wiki/Nonlinear_dimensionality_reduction#Uniform_manifold_approximation_and_projection) and an
 alternative algorithm [PACMAP](https://github.com/YingfanWang/PaCMAP).
 
@@ -78,4 +78,20 @@ The idea is similar to how one can compare document embedder maps:
 * Take a high dimensional data set $D\subset \mathbb{R}^P$ with $P \gg 1$.
 * Select a target dimension $Q \ll P$ to project down to.
 * Project the data down to $X = UMAP(D) \subset \mathbb{R}^Q$ and $Y = PACMAP(D) \subset \mathbb{R}^Q$
+* Just as in the document embedder scenario randomly select $M$ data points $\{D_m\}$ and look at the corresponding neighborhoods for $\{X_m\}$ anb $\{Y_m\}$.
+* For comparing local structure preserving algorithms,
+  * use the Euclidean metric to find and rank sort the $K$ nearest neighbors to each poin $X_m$ (respectively $Y_m$).
+  * To determine an appropriate $K$ for each $X_m$ you can use the distribution of sorted *ascending* distances from each projected point to $X_m$ (exclude $X_m$ itself) and find the elbow in the plot. The length of the left segment is the value of $K$ to use. 
+  * For each ranked list of $K$ points use the geometric probability distribution as in the document embedder scenario.
+  * Now that you have lists of lists for both maps and the corresponding probability distribution for each list, you can use the compute_recommender_test_statistic function to perform hypothesis testing.
+```python
+import rbo_analytics
+Z = rbo_analytics.compute_recommender_test_statistic((lists_a, lists_b,probs,verbose=True)
 
+print("Sigmage that the 2 nonlinear projection algorithms are functionally related when it comes to preserving local structure: {Z}")
+print(f"The 2 nonlinear projection algorithms are functionally related when it comes to preserving local structure: {Z>=-2.33}")
+```
+
+* For comparing their global structure preserving behavior, we invert the Euclidean metric: $||a - b|| \rightarrow 1/||a-b||$ to reoder the rankings and proceed as in the local structure preserving analysis.
+
+## Comparing LLMs
