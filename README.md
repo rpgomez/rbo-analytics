@@ -55,7 +55,7 @@ We would like to know if the 2 embedding models are statistically functionally r
    2. For each vector $E_m$ find its $P \ge 100$ closest neighbors $\{E_{m,p}\}$. **Exclude** $E_m$ from the list of neighbors. Compute the cosine similarity between vector $E_m$ and its $P$ closest neighors: $(<E_m,E_{m,p}>)$.
    3. Sort the cosine similarities as an ascending sequence $(cos_p)$.
    4. Find the elbow in the sequence of cosines $(cos_p)$ using an F-test to split the sequence into 2 subsequences. The size of the second subsequence is the corresponding value of $K_m$.
-   5. We can either take $K= \max(\{K_m\])$ or keep the set of $K$ values $\{K_m\}$.
+   5. We can either take $K= \max(\{K_m\})$ or keep the set of $K$ values $\{K_m\}$.
 3. Now that we have a value of $K$ for each document $D_m$ we have a corresponding persistence parameter $p=0.01^{(1/K)}$.
 4. For each document $D_m$ we have a ranked list of $K$ documents $list\_a = (i_1,\ldots,i_K)$ where $i_k$ denotes the index of the document that is $k^{th}$ closes to $D_m$   according to model $A$. We generate a similar second list of K ranked documents $list\_b = (j_1,\ldots, j_K)$ by proximity according to model $B$ (look at the corresponding vectors $(F_n)$.) For a corresponding probality distribution for model A's ranked list, we use the geometric based sequence 
 $$prob = \frac{(1-p)}{1-p^{K}}\times (1,p,p**2, \ldots, p_{K-1})$$
