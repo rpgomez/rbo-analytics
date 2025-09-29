@@ -67,7 +67,6 @@ Z = rbo_analytics.compute_recommender_test_statistic((lists_a, lists_b,probs,ver
 print("Sigmage that the 2 document embedders are functionally related: {Z}")
 print(f"The 2 document embedders are functionally related: {Z>=-2.33}")
 ```
-```
 
 ## Comparing Nonlinear Projection Algorithm
 One of the first things I wanted to do after developing a hypothesis testing analytic with RBO waas to
