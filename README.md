@@ -75,7 +75,7 @@ alternative algorithm [PACMAP](https://github.com/YingfanWang/PaCMAP).
 
 The idea is similar to how one can compare document embedder maps:
 
-* Take a high dimensional data set $D\subset \mathbb{R]^P$ with $P \gg 1$.
+* Take a high dimensional data set $D\subset \mathbb{R}^P$ with $P \gg 1$.
 * Select a target dimension $Q \ll P$ to project down to.
 * Project the data down to $X = UMAP(D) \subset \mathbb{R}^Q$ and $Y = PACMAP(D) \subset \mathbb{R}^Q$
 
