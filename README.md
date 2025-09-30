@@ -115,10 +115,11 @@ which have very little in common.
 
 1. Let $vocab_A$ and $vocab_B$ denote the vocabularies of the respective tokenizers.
    1. For each tokenizer we determine if there exists a special token to denote the beginning of a token stream by passing a sequence of texts into the tokenizer and observe if the first encoded token is always the same in every generated token stream.
-   2. For each tokenizer in order to detect existence of the symbol indicating a new word we perform a frequency count $\{c_n\}$ of the first character in each token.  Which ever nonalphanumeric character has the highest count is probably the indicator of a new word beginning.
+   2. For each tokenizer in order to detect the existence of the symbol indicating a new word we perform a frequency count $\{c_n\}$ of the first character in each token.  Which ever nonalphanumeric character has the highest count is probably the indicator of a new word beginning.
 2. Let $tok_a$ and $tok_b$ denote tokens from the vocabularies of the tokenizers for LLM A and B respectively. Taking into account the possible
 existence of a begin-of-stream token and a possible begin-word-character symbol we deduce a map from $vocab_A$ and $vocab_B$ as follows:
-> If $tok_a$ is a prefix for $tok_b$ or vice versa, then we have a correspondence $tok_a  \leftrightarrow tok_b$
+   1. Since the RBO analytic as we apply it is not symmetric in its arguments (the $K$ and $p$ parameters are determined by $A$, **not** $B$) we're only interested in the map $f:vocab_B \rightarrow vocab_A$ so we can compare the proposed tokens from LLM B to those from LLM A. For each pair of ranked lists we're comparing, we're only interested in mapping the top $K$ entries from each list.
+> For each entry  in the list $A$ and each entryIf $tok_a$ is a prefix for $tok_b$ or vice versa, then we have a correspondence $tok_a  \leftrightarrow tok_b$
 It's possible that more than 1 token from $vocab_A$ might map to the same token from $vocab_B$ and vice versa. If so we have 2 remediation strategies:
    * If we have 2 or more tokens $\{p_t\}$ mapping to a token $q$ from the other vocabulary, we assign the token $p_{t'}$ that is closest in edit distance to $q$.
    * If we have a token $q$ that maps to $p_1, p_2$ which are inequivalent
