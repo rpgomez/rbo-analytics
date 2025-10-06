@@ -28,12 +28,13 @@ pcutoff = .01
 num_simulations = int(100/pcutoff+0.5) # want enough monte carlo simulations for accuracy.
 
 # K determines how many of the ranked entries of list_a are important. If all matter, then K = len(list_a)
-p = 0.01**(1/K) # persistence parameter for RBO scores.
+p = 0.01**(1/K) # How we determine the persistence parameter for RBO scores.
 
-# perform simulations
-montecarlo_scores = rbo_analytics(probs,K = K,T=num_simulations,verbose=True)
+# perform simulations. probs is a sorted-in-descending-order list of
+# probabilities for the ranked list provided by recommender A.
+montecarlo_scores = rbo_analytics.perform_montecarlo(probs,K = K,T=num_simulations,verbose=True)
 
-cutoff_value = montecarlo_scores[100] # This is bottom %pcutoff of the generated scores.
+cutoff_value = montecarlo_scores[100] # This is the bottom %pcutoff of the generated scores.
 
 rboscore = rbo_analytics.compute_rbo_score(list_a, list_b,p)
 
