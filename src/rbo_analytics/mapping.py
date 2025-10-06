@@ -1,6 +1,103 @@
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 from typing import List, Tuple
+import collections
+from typing import List, Optional, Tuple, Dict, Set
+import string
+
+def detect_begin_stream_token(lists_of_tokens: List[List[str]]) -> Optional[str]:
+    """
+    Analyzes sequences of tokens to determine if the underlying tokenizer 
+    vocabulary includes a dedicated 'begin-new-stream' token (e.g., [CLS], <s>).
+
+    This token is typically added by a tokenizer as the first token of every 
+    new input string or sequence.
+
+    Args:
+        lists_of_tokens: A list where each element is a sequence of tokens 
+                         (List[str]) produced by tokenizing a distinct input string.
+
+    Returns:
+        The unique begin-new-stream token (str) if one is consistently found 
+        at the start of all non-empty sequences, otherwise returns None.
+    """
+
+    if not lists_of_tokens:
+        return None
+    
+    # 1. Extract the first token from every non-empty sequence
+    # Handles cases where an input list (token_list) might be empty.
+    first_tokens: List[str] = [token_list[0] for token_list in lists_of_tokens if token_list]
+
+    if not first_tokens:
+        # If all input lists were empty, we cannot determine a consistent start token.
+        return None
+        
+    # 2. Check if all collected first tokens are identical
+    # By converting the list of first tokens to a set, we can check its size.
+    # If the size is 1, all tokens are the same.
+    unique_first_tokens: Set[str] = set(first_tokens)
+    
+    if len(unique_first_tokens) == 1:
+        # Return the single unique token found. 
+        # Using .pop() is efficient for a set known to have only one element.
+        return unique_first_tokens.pop()
+    else:
+        # If the set size is > 1, the first token is not consistent across streams.
+        return None
+
+def detect_word_start_prefix(vocabulary: List[str]) -> Optional[Tuple[str, int]]:
+    """
+    Analyzes a tokenizer's vocabulary to detect the special non-alphanumeric 
+    symbol used as a prefix to indicate the start of a new word (a common feature 
+    in BPE or SentencePiece tokenizers, like ' ' or 'Ġ').
+
+    The detection is based on finding the most frequent non-alphanumeric character 
+    that appears as the first character of tokens, provided the token has content 
+    after the prefix.
+
+    Args:
+        vocabulary: A list of string tokens comprising the tokenizer's vocabulary.
+
+    Returns:
+        A tuple (prefix_symbol, count) containing the detected symbol and 
+        its frequency as a prefix, or None if no significant prefix is detected.
+    """
+    if not vocabulary:
+        return None
+
+    valid_alphanumeric=string.ascii_letters + string.digits
+    
+    # Use collections.Counter to track potential prefix symbols
+    prefix_candidates: collections.Counter[str] = collections.Counter()
+    
+    for token in vocabulary:
+        # We only look at tokens that are long enough to have both a prefix and content
+        if not token or len(token) <= 1:
+            continue
+        
+        first_char = token[0]
+        
+        # Check if the first character is NOT a standard alphanumeric character (A-Z, a-z, 0-9)
+        # or a character like 'Ġ':
+        if not first_char.isalnum() or first_char in ['Ġ']:
+            # This character is a non-alphanumeric prefix candidate.
+            prefix_candidates[first_char] += 1
+
+    if not prefix_candidates:
+        return None
+
+    # Get the most common prefix candidate and its count
+    most_common_candidate, count = prefix_candidates.most_common(1)[0]
+
+    # Heuristic check: To be a dedicated word-start marker, it should prefix 
+    # a significant portion of the vocabulary (e.g., more than 5%).
+    if count / len(vocabulary) > 0.05:
+        return most_common_candidate, count
+    else:
+        # If the most common non-alphanumeric prefix is too rare, 
+        # it is likely just punctuation or a control token, not a dedicated word-start marker.
+        return None
 
 def check_prefix_relationship(token_a: str, token_b: str) -> bool:
     """
