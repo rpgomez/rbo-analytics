@@ -68,7 +68,7 @@ import rbo_analytics
 # lists_b is a list of ranked lists of neighbors for (D_m) according to recommender B.
 # probs is a list of list of probabilities, probs[m]  are the probabilities corresponding
 # to a list of ranked neighbors lists_a[m] for document m according to A. 
-Z = rbo_analytics.compute_recommender_test_statistic((lists_a, lists_b,probs,verbose=True)
+Z = rbo_analytics.compute_recommender_test_statistic(lists_a, lists_b,probs,verbose=True)
 
 
 print("Sigmage that the 2 document embedders are functionally related: {Z}")
@@ -93,7 +93,7 @@ The idea is similar to how one can compare document embedder maps:
   * Now that you have lists of lists for both maps and the corresponding probability distribution for each list, you can use the compute_recommender_test_statistic function to perform hypothesis testing.
 ```python
 import rbo_analytics
-Z = rbo_analytics.compute_recommender_test_statistic((lists_a, lists_b,probs,verbose=True)
+Z = rbo_analytics.compute_recommender_test_statistic(lists_a, lists_b,probs,verbose=True)
 
 print("Sigmage that the 2 nonlinear projection algorithms are functionally related when it comes to preserving local structure: {Z}")
 print(f"The 2 nonlinear projection algorithms are functionally related when it comes to preserving local structure: {Z>=-2.33}")
