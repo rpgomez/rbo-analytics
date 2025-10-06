@@ -43,7 +43,7 @@ null_hypothesis_is_true = (rboscore > cutoff_value)
 ```
 ## Comparing document embedding models
 
-* We have 2 different document embedding models, A & B. 
+* We have 2 different document embedding models: $A$ and $B$. 
 * We have a corpus of $N \gg 1$ documents. 
 
 We would like to know if the 2 embedding models are statistically functionally related.
@@ -59,11 +59,17 @@ We would like to know if the 2 embedding models are statistically functionally r
    5. We can either take $K= \max(\{K_m\})$ or keep the set of $K$ values $\{K_m\}$.
 3. Now that we have a value of $K$ for each document $D_m$ we have a corresponding persistence parameter $p=0.01^{(1/K)}$.
 4. For each document $D_m$ we have a ranked list of $K$ documents $list\_a = (i_1,\ldots,i_K)$ where $i_k$ denotes the index of the document that is $k^{th}$ closes to $D_m$   according to model $A$. We generate a similar second list of K ranked documents $list\_b = (j_1,\ldots, j_K)$ by proximity according to model $B$ (look at the corresponding vectors $(F_n)$.) For a corresponding probality distribution for model A's ranked list, we use the geometric based sequence 
-$$prob = \frac{(1-p)}{1-p^{K}}\times (1,p,p**2, \ldots, p_{K-1})$$
+$$prob = \frac{(1-p)}{1-p^{K}}\times (1,p,p^2, \ldots, p_{K-1})$$
 5. Now we can use the rbo_analytics compute_recommender_test_statistic function to perform hypothesis testing.
 ```python
 import rbo_analytics
+
+# lists_a is a list of ranked lists of neighbors for (D_m) according to recommender A.
+# lists_b is a list of ranked lists of neighbors for (D_m) according to recommender B.
+# probs is a list of list of probabilities, probs[m]  are the probabilities corresponding
+# to a list of ranked neighbors lists_a[m] for document m according to A. 
 Z = rbo_analytics.compute_recommender_test_statistic((lists_a, lists_b,probs,verbose=True)
+
 
 print("Sigmage that the 2 document embedders are functionally related: {Z}")
 print(f"The 2 document embedders are functionally related: {Z>=-2.33}")
@@ -115,13 +121,36 @@ which have very little in common.
 **Resolution**: We infer a map between the 2 tokenizers in order to make comparisons of outputs. Our technique:
 
 1. Let $vocab_A$ and $vocab_B$ denote the vocabularies of the respective tokenizers.
-   1. For each tokenizer we determine if there exists a special token to denote the beginning of a token stream by passing a sequence of texts into the tokenizer and observe if the first encoded token is always the same in every generated token stream.
-   2. For each tokenizer in order to detect the existence of the symbol indicating a new word we perform a frequency count $\{c_n\}$ of the first character in each token.  Which ever nonalphanumeric character has the highest count is probably the indicator of a new word beginning.
+
+   1. For each tokenizer we determine if there exists a special token
+   to denote the beginning of a token stream by passing a sequence of
+   texts into the tokenizer and observe if the first encoded token is
+   always the same in every generated token stream.
+   
+   2. For each tokenizer in order to detect the existence of the
+   symbol indicating a new word we perform a frequency count $\{c_n\}$
+   of the first character in each token.  Whichever nonalphanumeric
+   character has the highest count is probably the indicator of a new
+   word beginning.
+
 2. Let $tok_a$ and $tok_b$ denote tokens from the vocabularies of the tokenizers for LLM A and B respectively. Taking into account the possible
 existence of a begin-of-stream token and a possible begin-word-character symbol we deduce a map from $vocab_A$ and $vocab_B$ as follows:
-   1. Since the RBO analytic as we apply it is not symmetric in its arguments (the $K$ and $p$ parameters are determined by $A$, **not** $B$) we're only interested in the map $f:vocab_B \rightarrow vocab_A$ so we can compare the proposed tokens from LLM B to those from LLM A. For each pair of ranked lists we're comparing, we're only interested in mapping the top $K$ entries from each list.
-> For each entry  in the list $A$ and each entryIf $tok_a$ is a prefix for $tok_b$ or vice versa, then we have a correspondence $tok_a  \leftrightarrow tok_b$
-It's possible that more than 1 token from $vocab_A$ might map to the same token from $vocab_B$ and vice versa. If so we have 2 remediation strategies:
-   * If we have 2 or more tokens $\{p_t\}$ mapping to a token $q$ from the other vocabulary, we assign the token $p_{t'}$ that is closest in edit distance to $q$.
-   * If we have a token $q$ that maps to $p_1, p_2$ which are inequivalent
 
+   1. Since the RBO analytic as we apply it is not symmetric in its
+   arguments (the $K$ and $p$ parameters are determined by $A$,
+   **not** $B$) we're only interested in the map $f:vocab_B
+   \rightarrow vocab_A$ so we can compare the proposed tokens from LLM
+   B to those from LLM A. For each pair of ranked lists we're
+   comparing, we're only interested in mapping the top $K$ entries
+   from each list.
+
+   2. For each entry in the list $A$ and each entry in the list $B$ if
+   $tok_a$ is a prefix for $tok_b$ or vice versa, then we have a
+   correspondence $tok_a \leftrightarrow tok_b$ It's possible that more
+   than 1 token from $vocab_A$ might map to the same token from $vocab_B$
+   and vice versa. If so we have a remediation strategy: we apply the
+   Hungarian algorithm to solve a Minimum Cost Assignment problem.
+
+We've provided a function, find_maximum_one_to_one_matching, in the submodule mapping to
+implement our algorithm for finding a correspondence between token vocabularies *after* stripping
+off the begin-new-word-symbol symbol from the tokens lists.
