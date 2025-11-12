@@ -6,7 +6,7 @@ from numpy.typing import NDArray
 from tqdm.auto import tqdm
 import scipy.stats
 
-import .mapping
+from . import mapping
 
 # Note: The 'typing' module is for type hints. For functions using NumPy arrays,
 # 'numpy.typing' is also often helpful, though standard Python types (like List, float)
