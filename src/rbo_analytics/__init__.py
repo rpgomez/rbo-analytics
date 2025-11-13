@@ -498,7 +498,7 @@ def compute_recommender_test_statistic(lists_a, lists_b, probs_a, verbose=False)
         iterable = tqdm(iterable,desc='Estimating mu_n, variance_n')
         
     mu_sigmas = [estimate_mu_variance_rbo_score(probs,Ks_ps[t][0],Ks_ps[t][1]) \
-                 for t,probs in enumerate(new_probs_a) ]
+                 for t,probs in enumerate(iterable) ]
 
     mu_sigmas = np.array(mu_sigmas)
     mu, var = mu_sigmas.sum(axis=0)
