@@ -58,7 +58,7 @@ We would like to know if the 2 embedding models are statistically functionally r
    4. Find the elbow in the sequence of cosines $(cos_p)$ using an F-test to split the sequence into 2 subsequences. The size of the second subsequence is the corresponding value of $K_m$.
    5. We can either take $K= \max(\{K_m\})$ or keep the set of $K$ values $\{K_m\}$.
 3. Now that we have a value of $K$ for each document $D_m$ we have a corresponding persistence parameter $p=0.01^{(1/K)}$.
-4. For each document $D_m$ we have a ranked list of $K$ documents $list\_a = (i_1,\ldots,i_K)$ where $i_k$ denotes the index of the document that is $k^{th}$ closes to $D_m$   according to model $A$. We generate a similar second list of K ranked documents $list\_b = (j_1,\ldots, j_K)$ by proximity according to model $B$ (look at the corresponding vectors $(F_n)$.) For a corresponding probality distribution for model A's ranked list, we use the geometric based sequence 
+4. For each document $D_m$ we have a ranked list of $K$ documents $list\_a = (i_1,\ldots,i_K)$ where $i_k$ denotes the index of the document that is $k^{th}$ closes to $D_m$   according to model $A$. We generate a similar second list of K ranked documents $list\_b = (j_1,\ldots, j_K)$ by proximity according to model $B$ (look at the corresponding vectors $(F_n)$.) For a corresponding probability distribution for model A's ranked list, we use the geometric based sequence 
 $$prob = \frac{(1-p)}{1-p^{K}}\times (1,p,p^2, \ldots, p_{K-1})$$
 5. Now we can use the rbo_analytics compute_recommender_test_statistic function to perform hypothesis testing.
 ```python
@@ -115,7 +115,7 @@ We have 2 LLMs, LLM A and LLM B. I would like to know if they function similarly
 * For each phrase we have a ranked list of tokens from LLM A, $(list_{a,m})$ and one from LLM B $(list_{b,m})$ with a corresponding probs lists from LLM A. We can then apply the compute_recommender_test_statistic function
 from rbo_analytics to determine if LLM A and B are related in their generative capacity.
 
-**Problem**: Token generation is dependent on the tokenizer of the LLM. There is no standardized tokenizer used by distinct LLMs. That means that when comparing ranked lists it would be like comparing appples and oranges
+**Problem**: Token generation is dependent on the tokenizer of the LLM. There is no standardized tokenizer used by distinct LLMs. That means that when comparing ranked lists it would be like comparing apples and oranges
 which have very little in common.
 
 **Resolution**: We infer a map between the 2 tokenizers in order to make comparisons of outputs. Our technique:
