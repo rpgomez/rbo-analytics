@@ -251,3 +251,5 @@ in its arguments, the matrix $Zscore$ will not be symmetric.
 
 Using a [biclustering algorithm](https://en.wikipedia.org/wiki/Biclustering)
 we can group the $M$ LLMs into strongly related groups of LLMs.
+
+Code implementing the biclustering argument can be found [here.](https://github.com/rpgomez/bicluster)
